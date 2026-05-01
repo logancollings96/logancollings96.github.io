@@ -1,4 +1,4 @@
-const CACHE = 'moon-phase-v1';
+const CACHE = 'moon-phase-v2';
 const ASSETS = [
   './index.html',
   './manifest.json',
