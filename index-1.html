@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Moon Phase</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#06060e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moon Phase">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cinzel:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0a0a12;
+    --void: #06060e;
+    --silver: #c8cfe0;
+    --moonlight: #e8ecf5;
+    --gold: #c9a96e;
+    --dim: #4a4e6a;
+    --glow: rgba(200, 210, 240, 0.12);
+    /* Safe area insets for notched phones */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--void);
+    color: var(--silver);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow-x: hidden;
+    /* Prevent pull-to-refresh interfering */
+    overscroll-behavior-y: contain;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh; /* dynamic viewport for mobile browsers */
+    padding: calc(2rem + var(--sat)) 1rem calc(2rem + var(--sab));
+    position: relative;
+  }
+
+  /* Star field */
+  .stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .star {
+    position: absolute;
+    border-radius: 50%;
+    background: white;
+    animation: twinkle var(--d) ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    from { opacity: var(--min-o); transform: scale(1); }
+    to   { opacity: var(--max-o); transform: scale(1.4); }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  /* Header */
+  .header { animation: fadeDown 1.2s ease both; }
+  .location-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    opacity: 0.85;
+  }
+  .date-label {
+    font-size: 1rem;
+    color: var(--dim);
+    font-style: italic;
+    letter-spacing: 0.05em;
+  }
+
+  /* Moon SVG */
+  .moon-wrapper {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    animation: fadeIn 1.8s ease both 0.3s;
+  }
+  .moon-glow {
+    position: absolute;
+    inset: -30px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,210,240,0.13) 0%, transparent 70%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.06); opacity: 1; }
+  }
+
+  svg#moon { width: 100%; height: 100%; overflow: visible; }
+
+  /* Phase name */
+  .phase-name {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--moonlight);
+    text-shadow: 0 0 40px rgba(200,210,240,0.4);
+    animation: fadeUp 1.2s ease both 0.5s;
+  }
+  .illumination {
+    font-size: 0.85rem;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    font-family: 'Cinzel', serif;
+    opacity: 0.9;
+    animation: fadeUp 1.2s ease both 0.6s;
+  }
+
+  /* Info cards */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    width: 100%;
+    background: var(--dim);
+    border: 1px solid var(--dim);
+    border-radius: 2px;
+    overflow: hidden;
+    animation: fadeUp 1.2s ease both 0.8s;
+  }
+  .info-card {
+    background: #0e0e1a;
+    padding: 1.2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .info-card-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.52rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .info-card-value {
+    font-size: 1.05rem;
+    color: var(--moonlight);
+    font-weight: 300;
+    line-height: 1.3;
+  }
+  .info-card-sub {
+    font-size: 0.82rem;
+    color: var(--silver);
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+  }
+
+  /* Progress */
+  .cycle-section {
+    width: 100%;
+    animation: fadeUp 1.2s ease both 1s;
+  }
+  .cycle-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-bottom: 0.8rem;
+  }
+  .progress-track {
+    width: 100%;
+    height: 2px;
+    background: #1a1a2e;
+    border-radius: 2px;
+    position: relative;
+    overflow: visible;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2a2a4a, var(--silver));
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+  .progress-dot {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--moonlight);
+    box-shadow: 0 0 10px rgba(200,210,240,0.8);
+  }
+  .progress-markers {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.6rem;
+  }
+  .progress-marker {
+    font-size: 0.6rem;
+    color: var(--dim);
+    font-style: italic;
+  }
+
+  /* Offline banner */
+  .offline-banner {
+    display: none;
+    position: fixed;
+    bottom: calc(1rem + var(--sab));
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    border: 1px solid var(--dim);
+    color: var(--silver);
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    padding: 0.6rem 1.2rem;
+    border-radius: 2px;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  body.offline .offline-banner { display: block; }
+
+  /* Help button */
+  .help-btn {
+    position: fixed;
+    top: calc(1.1rem + var(--sat));
+    right: 1.1rem;
+    z-index: 50;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--dim);
+    background: rgba(14, 14, 26, 0.7);
+    color: var(--dim);
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn 1.5s ease both 1s;
+  }
+  .help-btn:hover {
+    border-color: var(--silver);
+    color: var(--moonlight);
+    background: rgba(14, 14, 26, 0.95);
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 6, 14, 0.88);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 0 calc(var(--sab));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .modal-overlay.open {
+    display: flex;
+    animation: overlayIn 0.3s ease both;
+  }
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .modal {
+    background: #0e0e1a;
+    border: 1px solid var(--dim);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem 1.8rem calc(2rem + var(--sab));
+    animation: sheetUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    max-height: 88dvh;
+    overflow-y: auto;
+  }
+  @keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 36px;
+    height: 3px;
+    background: var(--dim);
+    border-radius: 2px;
+    margin: 0 auto 1.8rem;
+  }
+  .modal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+  .modal-subtitle {
+    font-size: 0.85rem;
+    color: var(--dim);
+    font-style: italic;
+    text-align: center;
+    margin-bottom: 1.8rem;
+    line-height: 1.5;
+  }
+
+  .step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.4rem;
+    text-align: left;
+  }
+  .step:last-of-type { margin-bottom: 0; }
+  .step-num {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    color: var(--gold);
+    opacity: 0.8;
+    min-width: 1.4rem;
+    padding-top: 0.1rem;
+  }
+  .step-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--moonlight);
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+  .step-desc {
+    font-size: 0.9rem;
+    color: var(--silver);
+    line-height: 1.65;
+  }
+  .step-desc em {
+    color: var(--gold);
+    font-style: normal;
+  }
+
+  .modal-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--dim), transparent);
+    margin: 1.6rem 0;
+  }
+
+  .modal-note {
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--dim);
+    border-radius: 2px;
+    font-size: 0.82rem;
+    color: var(--dim);
+    line-height: 1.65;
+    text-align: left;
+  }
+  .modal-note strong { color: var(--silver); font-weight: 400; }
+
+  .modal-close {
+    display: block;
+    width: 100%;
+    margin-top: 1.8rem;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--silver);
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 0.85rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .modal-close:hover { border-color: var(--silver); color: var(--moonlight); }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="offline-banner">✦ Viewing offline</div>
+<div class="stars" id="stars"></div>
+
+<div class="container">
+  <div class="header">
+    <div class="location-label" id="locationLabel">Murrumbeena, Victoria · Australia</div>
+    <div class="date-label" id="dateLabel"></div>
+  </div>
+
+  <div class="moon-wrapper">
+    <div class="moon-glow"></div>
+    <svg id="moon" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="moonGrad" cx="45%" cy="40%" r="55%">
+          <stop offset="0%" stop-color="#e8ecf5"/>
+          <stop offset="60%" stop-color="#c0c8dc"/>
+          <stop offset="100%" stop-color="#8890aa"/>
+        </radialGradient>
+        <radialGradient id="shadowGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#0a0a16" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#06060e" stop-opacity="0.98"/>
+        </radialGradient>
+        <clipPath id="moonClip">
+          <circle cx="100" cy="100" r="80"/>
+        </clipPath>
+      </defs>
+      <circle cx="100" cy="100" r="80" fill="url(#moonGrad)" id="moonBase"/>
+      <g clip-path="url(#moonClip)">
+        <path id="shadowPath" fill="url(#shadowGrad)"/>
+      </g>
+      <g clip-path="url(#moonClip)" opacity="0.18">
+        <circle cx="75" cy="70" r="8" fill="#8890aa"/>
+        <circle cx="120" cy="90" r="5" fill="#8890aa"/>
+        <circle cx="90" cy="125" r="6" fill="#8890aa"/>
+        <circle cx="130" cy="130" r="9" fill="#8890aa"/>
+        <circle cx="60" cy="110" r="4" fill="#8890aa"/>
+        <circle cx="140" cy="65" r="7" fill="#8890aa"/>
+      </g>
+      <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(200,210,240,0.08)" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <div>
+    <div class="phase-name" id="phaseName">Waxing Gibbous</div>
+    <div class="illumination" id="illumination">72% Illuminated</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">Last Full Moon</div>
+      <div class="info-card-value" id="lastFull">—</div>
+      <div class="info-card-sub" id="lastFullAgo">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Next Full Moon</div>
+      <div class="info-card-value" id="nextFull">—</div>
+      <div class="info-card-sub" id="nextFullIn">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Last New Moon</div>
+      <div class="info-card-value" id="lastNew">—</div>
+      <div class="info-card-sub" id="lastNewAgo">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Next New Moon</div>
+      <div class="info-card-value" id="nextNew">—</div>
+      <div class="info-card-sub" id="nextNewIn">—</div>
+    </div>
+  </div>
+
+  <div class="cycle-section">
+    <div class="cycle-label">Lunar Cycle Progress</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+      <div class="progress-dot" id="progressDot"></div>
+    </div>
+    <div class="progress-markers">
+      <span class="progress-marker">New Moon</span>
+      <span class="progress-marker">Full Moon</span>
+      <span class="progress-marker">New Moon</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Help button (top-right) -->
+<button class="help-btn" onclick="openModal()" aria-label="How to use the moon phase complication">?</button>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✦ Moon Phase Complication ✦</div>
+    <div class="modal-subtitle">How to read & set the moon phase<br>on a mechanical wristwatch</div>
+
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <div class="step-title">Locate the complication</div>
+        <div class="step-desc">Find the moon phase display on your dial — typically a small aperture at <em>6 o'clock</em>. Inside sits a rotating disc with two painted moons visible through a semi-circular window representing the sky.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <div class="step-title">Note the last full moon date</div>
+        <div class="step-desc">Check the <em>Last Full Moon</em> date shown on this app's main screen, and count how many days ago it occurred. This is the number of advances you will need to make in step 04.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <div class="step-title">Set the disc to full moon</div>
+        <div class="step-desc">Unscrew the crown if needed, then pull it to the <em>setting position</em> (two clicks out on most watches). Advance the moon disc — via the crown or a dedicated <em>pusher at 2 or 4 o'clock</em> depending on your calibre — until the moon is <em>perfectly centred</em> in the aperture, fully visible. This represents the moment of full moon.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <div class="step-title">Advance one press per day elapsed</div>
+        <div class="step-desc">From the full moon position, press or advance the complication <em>once for each day</em> that has passed since the last full moon. For example, if the last full moon was 8 days ago, advance the disc 8 times. Each press moves the disc forward by exactly one day.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-body">
+        <div class="step-title">Push the crown back in</div>
+        <div class="step-desc">Once set, push the crown back to its <em>normal position</em> and screw it down if applicable. The disc will now advance automatically — roughly one day every 24 hours — keeping pace with the lunar cycle.</div>
+      </div>
+    </div>
+
+    <div class="modal-divider"></div>
+
+    <div class="modal-note">
+      <strong>Accuracy:</strong> Most mechanical moon phase complications use a 59-tooth wheel that advances every 24 hours, which drifts by about <em>one day every 2.7 years</em> compared to the true 29.53-day synodic month. High-precision versions use a 135-tooth wheel, accurate to roughly one day per 122 years. Periodically resetting using this app keeps yours true.
+    </div>
+
+    <button class="modal-close" onclick="closeModal()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+// ── PWA: Register Service Worker ─────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
+
+// ── Offline detection ────────────────────────────────────────
+function updateOnlineStatus() {
+  document.body.classList.toggle('offline', !navigator.onLine);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ── Star field ───────────────────────────────────────────────
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 180; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() < 0.15 ? Math.random() * 2 + 1.5 : Math.random() * 1.2 + 0.3;
+  const minO = (0.1 + Math.random() * 0.2).toFixed(2);
+  const maxO = (0.5 + Math.random() * 0.5).toFixed(2);
+  s.style.cssText = `
+    width:${size}px; height:${size}px;
+    top:${Math.random()*100}%; left:${Math.random()*100}%;
+    --d:${(2+Math.random()*4).toFixed(1)}s;
+    --min-o:${minO}; --max-o:${maxO};
+    animation-delay:${(Math.random()*4).toFixed(1)}s;
+  `;
+  starsEl.appendChild(s);
+}
+
+// ── Moon phase calculation ───────────────────────────────────
+function getMoonAge(date) {
+  const knownNewMoon = new Date('2000-01-06T18:14:00Z');
+  const synodicMonth = 29.530588853;
+  const diffDays = (date - knownNewMoon) / 86400000;
+  const cycles = diffDays / synodicMonth;
+  const age = (cycles % 1) * synodicMonth;
+  return { age: age < 0 ? age + synodicMonth : age, synodicMonth };
+}
+
+function getIllumination(age, syn) {
+  return (1 - Math.cos((age / syn) * 2 * Math.PI)) / 2;
+}
+
+function getPhaseName(age, syn) {
+  const pct = age / syn;
+  if (pct < 0.025 || pct > 0.975) return 'New Moon';
+  if (pct < 0.225) return 'Waxing Crescent';
+  if (pct < 0.275) return 'First Quarter';
+  if (pct < 0.475) return 'Waxing Gibbous';
+  if (pct < 0.525) return 'Full Moon';
+  if (pct < 0.725) return 'Waning Gibbous';
+  if (pct < 0.775) return 'Last Quarter';
+  return 'Waning Crescent';
+}
+
+function daysAgo(n) {
+  if (n < 1) return 'today';
+  if (n < 1.5) return 'yesterday';
+  return `${Math.round(n)} days ago`;
+}
+function daysIn(n) {
+  if (n < 0.5) return 'today';
+  if (n < 1.5) return 'tomorrow';
+  return `in ${Math.round(n)} days`;
+}
+function formatDate(d) {
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function drawMoonShadow(age, syn) {
+  const cx = 100, cy = 100, r = 80;
+  const pct = age / syn;
+  const illum = getIllumination(age, syn);
+  const termX = (1 - 2 * illum) * r;
+  let d;
+  if (illum < 0.01) {
+    d = `M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy} A ${r} ${r} 0 0 1 ${cx-r} ${cy} Z`;
+  } else if (illum > 0.99) {
+    d = '';
+  } else if (pct < 0.5) {
+    const tx = Math.abs(termX);
+    const sweep = termX < 0 ? 1 : 0;
+    d = `M ${cx} ${cy-r} A ${r} ${r} 0 0 0 ${cx} ${cy+r} A ${tx} ${r} 0 0 ${sweep} ${cx} ${cy-r} Z`;
+  } else {
+    const tx = Math.abs(termX);
+    const sweep = termX > 0 ? 1 : 0;
+    d = `M ${cx} ${cy-r} A ${r} ${r} 0 0 1 ${cx} ${cy+r} A ${tx} ${r} 0 0 ${sweep} ${cx} ${cy-r} Z`;
+  }
+  document.getElementById('shadowPath').setAttribute('d', d);
+}
+
+// ── Main ─────────────────────────────────────────────────────
+const now = new Date();
+const { age, synodicMonth } = getMoonAge(now);
+const illum = getIllumination(age, synodicMonth);
+const phaseName = getPhaseName(age, synodicMonth);
+const pct = age / synodicMonth;
+const halfSyn = synodicMonth / 2;
+
+let daysSinceFull, daysToFull;
+if (age < halfSyn) {
+  daysSinceFull = synodicMonth - halfSyn + age;
+  daysToFull = halfSyn - age;
+} else {
+  daysSinceFull = age - halfSyn;
+  daysToFull = synodicMonth - age + halfSyn;
+}
+
+const daysSinceNew = age;
+const daysToNew = synodicMonth - age;
+
+const lastFullDate = new Date(now - daysSinceFull * 86400000);
+const nextFullDate = new Date(now.getTime() + daysToFull * 86400000);
+const lastNewDate  = new Date(now - daysSinceNew * 86400000);
+const nextNewDate  = new Date(now.getTime() + daysToNew * 86400000);
+
+document.getElementById('dateLabel').textContent =
+  now.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+document.getElementById('phaseName').textContent = phaseName;
+document.getElementById('illumination').textContent = `${Math.round(illum * 100)}% Illuminated`;
+
+document.getElementById('lastFull').textContent    = formatDate(lastFullDate);
+document.getElementById('lastFullAgo').textContent = daysAgo(daysSinceFull);
+document.getElementById('nextFull').textContent    = formatDate(nextFullDate);
+document.getElementById('nextFullIn').textContent  = daysIn(daysToFull);
+
+document.getElementById('lastNew').textContent     = formatDate(lastNewDate);
+document.getElementById('lastNewAgo').textContent  = daysAgo(daysSinceNew);
+document.getElementById('nextNew').textContent     = formatDate(nextNewDate);
+document.getElementById('nextNewIn').textContent   = daysIn(daysToNew);
+
+document.getElementById('progressFill').style.width = `${pct * 100}%`;
+document.getElementById('progressDot').style.left   = `${pct * 100}%`;
+
+drawMoonShadow(age, synodicMonth);
+
+// ── Modal ─────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+</script>
+</body>
+</html>
